@@ -5,17 +5,24 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep application classes (WebView bridge, storage, Compose entry points).
+-keep class com.example.** { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Keep methods exposed to WebView via @JavascriptInterface.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Preserve annotations and metadata (Moshi / Kotlin reflection safety).
+-keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
+-keep class kotlin.Metadata { *; }
+
+# Moshi (safe even if unused).
+-keepclasseswithmembers class * {
+    @com.squareup.moshi.* <methods>;
+}
+-keep @com.squareup.moshi.JsonQualifier interface *
+
+# Keep line numbers for readable crash reports.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
