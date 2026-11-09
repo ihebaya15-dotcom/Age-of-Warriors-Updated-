@@ -1,0 +1,8 @@
+{
+  "name": "Age of Warriors",
+  "description": "Tactical timeline battle game inspired by We Are Warriors with historical eras, hero commanders, and hand-drawn line boil animations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

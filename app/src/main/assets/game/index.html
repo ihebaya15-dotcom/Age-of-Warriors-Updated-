@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Age of Warriors</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- CANVAS -->
+        <canvas id="game-canvas"></canvas>
+
+        <!-- ========================================== -->
+        <!-- 1. DEDICATED EXTERNAL MAIN MENU HUB SCREEN -->
+        <!-- ========================================== -->
+        <div id="main-menu-hub" class="main-menu-hub active">
+            <!-- TOP BAR OF MAIN MENU -->
+            <div class="menu-hub-header">
+                <div class="menu-brand-col">
+                    <span class="menu-brand-icon">⚔️</span>
+                    <div class="menu-brand-text">
+                        <span class="menu-title-main">AGE OF WARRIORS</span>
+                        <span class="menu-title-sub">صراع العصور التاريخية</span>
+                    </div>
+                </div>
+
+                <div class="menu-hub-currencies">
+                    <div class="currency-pill coins" title="Coins (الذهب)">
+                        <span class="pill-icon">🪙</span>
+                        <span id="menu-coins">50</span>
+                    </div>
+                    <div class="currency-pill gems" title="Gems (الجواهر)">
+                        <span class="pill-icon">💎</span>
+                        <span id="menu-gems">10</span>
+                    </div>
+                    <div class="currency-pill stars" title="Mastery Stars (نجوم المهارة)">
+                        <span class="pill-icon">⭐</span>
+                        <span id="menu-stars">5</span>
+                    </div>
+                    <button class="menu-icon-btn" id="menu-btn-settings" title="Settings (الإعدادات)">⚙️</button>
+                </div>
+            </div>
+
+            <!-- CENTERSTAGE: HERO COMMANDER & FORTRESS SHOWCASE -->
+            <div class="menu-hub-center">
+                <div class="menu-showcase-card">
+                    <div class="showcase-badge" id="menu-era-badge">🏛️ ERA: STONE AGE (العصر الحجري)</div>
+                    <div class="showcase-content-row">
+                        <div class="showcase-visual-avatar" id="menu-commander-avatar">👑🪓</div>
+                        <div class="showcase-details">
+                            <h2 class="showcase-commander-name" id="menu-commander-name">Chief Ogg (الزعيم أوج)</h2>
+                            <div class="showcase-fortress-line" id="menu-fortress-name">🏰 Fortress: Prehistoric Cave (كهف حجري)</div>
+                            <div class="showcase-skill-badge" id="menu-commander-skill">⚡ Skill: Primal Warcry (+60% ATK & +50% SPD)</div>
+                        </div>
+                    </div>
+
+                    <!-- MINI STATS BAR -->
+                    <div class="menu-stats-row">
+                        <div class="menu-stat-item">
+                            <span class="stat-mini-icon">💀</span>
+                            <span class="stat-mini-val" id="menu-stat-kills">0</span>
+                            <span class="stat-mini-lbl">Kills</span>
+                        </div>
+                        <div class="menu-stat-item">
+                            <span class="stat-mini-icon">🏆</span>
+                            <span class="stat-mini-val" id="menu-stat-wins">0</span>
+                            <span class="stat-mini-lbl">Wins</span>
+                        </div>
+                        <div class="menu-stat-item">
+                            <span class="stat-mini-icon">⚔️</span>
+                            <span class="stat-mini-val" id="menu-stat-battles">0</span>
+                            <span class="stat-mini-lbl">Fought</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GIANT BATTLE CTA PLAY BUTTON -->
+                <button class="menu-play-cta-btn" id="menu-btn-play" title="Start Timeline Battle">
+                    <div class="cta-pulse-glow"></div>
+                    <div class="cta-inner">
+                        <span class="cta-icon">⚔️</span>
+                        <div class="cta-text-col">
+                            <span class="cta-main-text">BATTLE / PLAY</span>
+                            <span class="cta-sub-text">خُض المعركة الآن</span>
+                        </div>
+                    </div>
+                </button>
+            </div>
+
+            <!-- BOTTOM NAVIGATION FEATURE DOCK -->
+            <div class="menu-hub-dock">
+                <button class="hub-dock-card masteries" id="menu-btn-masteries">
+                    <div class="hub-card-icon">⚡</div>
+                    <div class="hub-card-title">Masteries</div>
+                    <div class="hub-card-sub">شجرة المهارات</div>
+                </button>
+
+                <button class="hub-dock-card runes" id="menu-btn-runes">
+                    <div class="hub-card-icon">🃏</div>
+                    <div class="hub-card-title">Runes</div>
+                    <div class="hub-card-sub">بطاقات القوات</div>
+                </button>
+
+                <button class="hub-dock-card upgrades" id="menu-btn-upgrades">
+                    <div class="hub-card-icon">🛠️</div>
+                    <div class="hub-card-title">Upgrades</div>
+                    <div class="hub-card-sub">ترقية القاعدة</div>
+                </button>
+
+                <button class="hub-dock-card evolve" id="menu-btn-evolve">
+                    <div class="hub-card-icon">🏛️</div>
+                    <div class="hub-card-title">Evolve</div>
+                    <div class="hub-card-sub">تطور العصور</div>
+                </button>
+
+                <button class="hub-dock-card dungeon" id="menu-btn-dungeon">
+                    <div class="hub-card-icon">💀</div>
+                    <div class="hub-card-title">Dungeon</div>
+                    <div class="hub-card-sub">غارة الزعيم</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 2. BATTLEFIELD HUD & CONTROLS SCREEN       -->
+        <!-- ========================================== -->
+        <div id="battlefield-ui" class="battlefield-ui hidden">
+            <!-- TOP HUD -->
+            <div id="top-hud">
+                <div class="hud-left">
+                    <button class="hud-btn retreat-btn" id="btn-retreat-menu" title="Return to Main Menu (العودة للقائمة)">🏠 Menu</button>
+                    <div class="era-badge" id="hud-era">Stone Age</div>
+                    <div class="resource-pill weather-pill" id="hud-weather" title="Weather Condition">🍃 Leaves</div>
+                    <div class="resource-pill">
+                        <span class="coin-icon">🪙</span>
+                        <span id="hud-coins">50</span>
+                    </div>
+                    <div class="resource-pill">
+                        <span class="gem-icon">💎</span>
+                        <span id="hud-gems">10</span>
+                    </div>
+                </div>
+
+                <div class="hud-right">
+                    <button class="hud-btn" id="btn-settings" title="Settings (الإعدادات)">⚙️</button>
+                    <button class="hud-btn" id="btn-stats" title="Session Stats">📊</button>
+                    <button class="hud-btn" id="btn-speed">1x</button>
+                    <button class="hud-btn active" id="btn-sound" title="Audio">🔊</button>
+                    <button class="hud-btn" id="btn-pause">⏸️</button>
+                </div>
+            </div>
+
+            <!-- BASE HEALTH TOP BARS -->
+            <div id="base-status-bar">
+                <div class="base-hp-badge player-base">
+                    <span class="base-hp-val" id="player-base-hp-text">500</span>
+                    <div class="base-hp-mini-bar"><div class="base-hp-mini-fill" id="player-base-hp-fill"></div></div>
+                </div>
+                <div class="base-hp-badge enemy-base">
+                    <span class="base-hp-val" id="enemy-base-hp-text">500</span>
+                    <div class="base-hp-mini-bar"><div class="base-hp-mini-fill" id="enemy-base-hp-fill"></div></div>
+                </div>
+            </div>
+
+            <!-- TACTICAL PAUSE ON-DEMAND BANNER -->
+            <div id="tactical-pause-banner" class="tactical-pause-banner hidden">
+                <div class="pause-badge-content">
+                    <div class="pause-icon-pulse">⏸️</div>
+                    <div class="pause-text-col">
+                        <span class="pause-main-title">تحليل تكتيكي • Tactical Pause</span>
+                        <span class="pause-sub-title">انقر على الساحة للاستئناف • Tap board to resume</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SIDE ACTIONS -->
+            <div id="side-actions">
+                <button class="action-chip-btn upgrade" id="btn-open-upgrades">
+                    <span>⚡</span> Upgrades
+                </button>
+                <button class="action-chip-btn evolve" id="btn-open-evolve">
+                    <span>🏛️</span> Evolve
+                </button>
+                <button class="action-chip-btn dungeon" id="btn-open-dungeon">
+                    <span>💀</span> Dungeon
+                </button>
+                <button class="action-chip-btn free-food" id="btn-free-food">
+                    <span>🍖</span> +25 Food (Ad)
+                </button>
+            </div>
+
+            <!-- TACTICAL ACTION BUTTONS (Commander Ultimate & Air Strike) -->
+            <div class="tactical-actions-cluster">
+                <!-- HERO ULTIMATE SKILL BUTTON -->
+                <button class="hero-ultimate-btn ready" id="btn-hero-ultimate" title="Commander Ultimate Skill">
+                    <div class="hero-ultimate-pulse-ring"></div>
+                    <div class="hero-ultimate-icon" id="hero-ultimate-icon">👑</div>
+                    <div class="hero-ultimate-name" id="hero-ultimate-name">WARCRY</div>
+                    <div class="hero-ultimate-cd" id="hero-ultimate-cd">READY</div>
+                </button>
+
+                <!-- TACTICAL BOMB / AIR STRIKE BUTTON -->
+                <button class="airstrike-btn ready" id="btn-air-strike" title="Tactical Bomb Strike">
+                    <div class="airstrike-icon">💣</div>
+                    <div class="airstrike-cooldown" id="airstrike-cd">READY</div>
+                </button>
+            </div>
+
+            <!-- BOTTOM HUD (FOOD & UNIT SPAWNER) -->
+            <div id="bottom-hud">
+                <div class="food-gauge-container">
+                    <div class="food-label">
+                        <span>🍖</span>
+                        <span id="food-text">0 / 20</span>
+                    </div>
+                    <div class="food-progress-bar-bg">
+                        <div class="food-progress-bar-fill" id="food-fill"></div>
+                    </div>
+                    <div class="food-rate-tag" id="food-rate">+1.2/s</div>
+                </div>
+
+                <div class="units-dock">
+                    <!-- Unit 0 -->
+                    <div class="unit-card" id="unit-card-0">
+                        <div class="unit-icon-render" id="unit-icon-0">🪓</div>
+                        <div class="unit-name" id="unit-name-0">Clubman</div>
+                        <div class="unit-cost">
+                            <span>🍖</span>
+                            <span id="unit-cost-0">3</span>
+                        </div>
+                        <div class="cooldown-overlay" id="unit-cd-0">0.0s</div>
+                    </div>
+
+                    <!-- Unit 1 -->
+                    <div class="unit-card" id="unit-card-1">
+                        <div class="unit-icon-render" id="unit-icon-1">🪨</div>
+                        <div class="unit-name" id="unit-name-1">Rock Thrower</div>
+                        <div class="unit-cost">
+                            <span>🍖</span>
+                            <span id="unit-cost-1">5</span>
+                        </div>
+                        <div class="cooldown-overlay" id="unit-cd-1">0.0s</div>
+                    </div>
+
+                    <!-- Unit 2 -->
+                    <div class="unit-card" id="unit-card-2">
+                        <div class="unit-icon-render" id="unit-icon-2">🦖</div>
+                        <div class="unit-name" id="unit-name-2">Dino Rider</div>
+                        <div class="unit-cost">
+                            <span>🍖</span>
+                            <span id="unit-cost-2">10</span>
+                        </div>
+                        <div class="cooldown-overlay" id="unit-cd-2">0.0s</div>
+                    </div>
+
+                    <!-- Hero Commander Unit -->
+                    <div class="unit-card hero-card" id="unit-card-hero">
+                        <div class="hero-badge-tag">👑 HERO</div>
+                        <div class="unit-icon-render" id="unit-icon-hero">👑🪓</div>
+                        <div class="unit-name" id="unit-name-hero">Chief Ogg</div>
+                        <div class="unit-cost">
+                            <span>🍖</span>
+                            <span id="unit-cost-hero">12</span>
+                        </div>
+                        <div class="cooldown-overlay" id="unit-cd-hero">0.0s</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 3. UNIVERSAL MASTERY SKILL TREE MODAL      -->
+        <!-- ========================================== -->
+        <div class="modal-backdrop" id="modal-masteries">
+            <div class="modal-dialog modal-large">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <div class="modal-title">⚡ Universal Mastery Tree (شجرة المهارات)</div>
+                        <div class="mastery-stars-badge">
+                            <span>⭐ Available Stars:</span>
+                            <span class="stars-val" id="mastery-stars-count">5</span>
+                        </div>
+                    </div>
+                    <button class="modal-close-btn" id="close-masteries">✕</button>
+                </div>
+
+                <div class="mastery-branches-container">
+                    <!-- BRANCH 1: IRON LEGION (OFFENSE) -->
+                    <div class="mastery-branch offense">
+                        <div class="branch-header">
+                            <span class="branch-icon">⚔️</span>
+                            <div class="branch-title-col">
+                                <span class="branch-title">Iron Legion</span>
+                                <span class="branch-sub">الهجوم والقوة المدمرة</span>
+                            </div>
+                        </div>
+                        <div class="branch-nodes-list">
+                            <div class="mastery-node" id="node-primalMight">
+                                <div class="node-icon">💥</div>
+                                <div class="node-info">
+                                    <div class="node-name">Primal Might (قوة بدائية)</div>
+                                    <div class="node-desc">+5% attack damage per rank to all units</div>
+                                    <div class="node-progress">Rank: <span id="rank-primalMight">0</span> / 5</div>
+                                </div>
+                                <button class="btn-node-upgrade" data-node="primalMight">⭐ Upgrade</button>
+                            </div>
+
+                            <div class="mastery-node" id="node-criticalSurge">
+                                <div class="node-icon">🎯</div>
+                                <div class="node-info">
+                                    <div class="node-name">Critical Surge (الضربة القاضية)</div>
+                                    <div class="node-desc">+4% Crit Chance & +25% Crit Damage</div>
+                                    <div class="node-progress">Rank: <span id="rank-criticalSurge">0</span> / 5</div>
+                                </div>
+                                <button class="btn-node-upgrade" data-node="criticalSurge">⭐ Upgrade</button>
+                            </div>
+
+                            <div class="mastery-node" id="node-cleaveImpact">
+                                <div class="node-icon">🪓</div>
+                                <div class="node-info">
+                                    <div class="node-name">Cleave Impact (اتساع الهجوم)</div>
+                                    <div class="node-desc">+12% melee splash hit area for all frontliners</div>
+                                    <div class="node-progress">Rank: <span id="rank-cleaveImpact">0</span> / 3</div>
+                                </div>
+                                <button class="btn-node-upgrade" data-node="cleaveImpact">⭐ Upgrade</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BRANCH 2: AEGIS BASTION (DEFENSE) -->
+                    <div class="mastery-branch defense">
+                        <div class="branch-header">
+                            <span class="branch-icon">🛡️</span>
+                            <div class="branch-title-col">
+                                <span class="branch-title">Aegis Bastion</span>
+                                <span class="branch-sub">الدفاع والتحصينات</span>
+                            </div>
+                        </div>
+                        <div class="branch-nodes-list">
+                            <div class="mastery-node" id="node-fortifiedWalls">
+                                <div class="node-icon">🏰</div>
+                                <div class="node-info">
+                                    <div class="node-name">Fortified Walls (تحصين الحصن)</div>
+                                    <div class="node-desc">+350 Max HP to fortress across all eras</div>
+                                    <div class="node-progress">Rank: <span id="rank-fortifiedWalls">0</span> / 5</div>
+                                </div>
+                                <button class="btn-node-upgrade" data-node="fortifiedWalls">⭐ Upgrade</button>
+                            </div>
+
+                            <div class="mastery-node" id="node-guardianShield">
+                                <div class="node-icon">✨</div>
+                                <div class="node-info">
+                                    <div class="node-name">Guardian Shield (درع البداية)</div>
+                                    <div class="node-desc">Units spawn with +50 HP protective shield</div>
+                                    <div class="node-progress">Rank: <span id="rank-guardianShield">0</span> / 3</div>
+                                </div>
+                                <button class="btn-node-upgrade" data-node="guardianShield">⭐ Upgrade</button>
+                            </div>
+
+                            <div class="mastery-node" id="node-spikedThorns">
+                                <div class="node-icon">🌵</div>
+                                <div class="node-info">
+                                    <div class="node-name">Spiked Barricades (رد الضرر)</div>
+                                    <div class="node-desc">15% reflective contact damage back to attackers</div>
+                                    <div class="node-progress">Rank: <span id="rank-spikedThorns">0</span> / 3</div>
+                                </div>
+                                <button class="btn-node-upgrade" data-node="spikedThorns">⭐ Upgrade</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BRANCH 3: SUPPLY LOGISTICS (ECONOMY) -->
+                    <div class="mastery-branch economy">
+                        <div class="branch-header">
+                            <span class="branch-icon">🍖</span>
+                            <div class="branch-title-col">
+                                <span class="branch-title">Supply Logistics</span>
+                                <span class="branch-sub">الإمدادات والاقتصاد</span>
+                            </div>
+                        </div>
+                        <div class="branch-nodes-list">
+                            <div class="mastery-node" id="node-abundantHarvest">
+                                <div class="node-icon">🌾</div>
+                                <div class="node-info">
+                                    <div class="node-name">Abundant Harvest (وفرة الطعام)</div>
+                                    <div class="node-desc">+0.20 food/s production rate across eras</div>
+                                    <div class="node-progress">Rank: <span id="rank-abundantHarvest">0</span> / 5</div>
+                                </div>
+                                <button class="btn-node-upgrade" data-node="abundantHarvest">⭐ Upgrade</button>
+                            </div>
+
+                            <div class="mastery-node" id="node-scavengerGold">
+                                <div class="node-icon">💰</div>
+                                <div class="node-info">
+                                    <div class="node-name">Scavenger Gold (غنائم المعركة)</div>
+                                    <div class="node-desc">+15% extra gold reward per enemy kill</div>
+                                    <div class="node-progress">Rank: <span id="rank-scavengerGold">0</span> / 5</div>
+                                </div>
+                                <button class="btn-node-upgrade" data-node="scavengerGold">⭐ Upgrade</button>
+                            </div>
+
+                            <div class="mastery-node" id="node-tacticalAgility">
+                                <div class="node-icon">⚡</div>
+                                <div class="node-info">
+                                    <div class="node-name">Tactical Agility (سرعة الاستدعاء)</div>
+                                    <div class="node-desc">-10% unit deployment & hero recharge cooldown</div>
+                                    <div class="node-progress">Rank: <span id="rank-tacticalAgility">0</span> / 3</div>
+                                </div>
+                                <button class="btn-node-upgrade" data-node="tacticalAgility">⭐ Upgrade</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 4. UNIT RUNE CARDS COLLECTION MODAL        -->
+        <!-- ========================================== -->
+        <div class="modal-backdrop" id="modal-runes">
+            <div class="modal-dialog modal-large">
+                <div class="modal-header">
+                    <div class="modal-title">🃏 Unit Rune Cards Armory (بطاقات القوات)</div>
+                    <button class="modal-close-btn" id="close-runes">✕</button>
+                </div>
+                <div class="runes-overview-text">
+                    Permanent combat empowerment for every warrior archetype across all 6 historical eras.
+                </div>
+
+                <div class="runes-grid">
+                    <!-- Melee Rune Card -->
+                    <div class="rune-card common" id="card-melee">
+                        <div class="rune-rarity-tag">COMMON • مشاة الخط الأول</div>
+                        <div class="rune-card-avatar">🗡️</div>
+                        <div class="rune-card-name">Melee Legion Rune</div>
+                        <div class="rune-card-boost">Boosts: Clubman, Spearman, Halberdier, Musketeer, Commando, Plasma Blade</div>
+                        <div class="rune-stat-buff">+<span id="rune-buff-melee">15</span>% HP & Frontal Armor</div>
+                        <div class="rune-progress-bar-bg">
+                            <div class="rune-progress-fill" id="rune-fill-melee" style="width: 50%;"></div>
+                        </div>
+                        <div class="rune-progress-text" id="rune-text-melee">Cards: 5 / 10</div>
+                        <button class="rune-upgrade-btn" data-rune="melee">
+                            🪙 Upgrade (Level <span id="rune-lvl-melee">1</span>)
+                        </button>
+                    </div>
+
+                    <!-- Ranged Rune Card -->
+                    <div class="rune-card rare" id="card-ranged">
+                        <div class="rune-rarity-tag">RARE • رماة السهام والبنادق</div>
+                        <div class="rune-card-avatar">🏹</div>
+                        <div class="rune-card-name">Ranged Marksman Rune</div>
+                        <div class="rune-card-boost">Boosts: Rock Thrower, Archer, Longbowman, Falconet, Bazooka, Railgun</div>
+                        <div class="rune-stat-buff">+<span id="rune-buff-ranged">15</span>% Range & Projectile Velocity</div>
+                        <div class="rune-progress-bar-bg">
+                            <div class="rune-progress-fill" id="rune-fill-ranged" style="width: 30%;"></div>
+                        </div>
+                        <div class="rune-progress-text" id="rune-text-ranged">Cards: 3 / 10</div>
+                        <button class="rune-upgrade-btn" data-rune="ranged">
+                            🪙 Upgrade (Level <span id="rune-lvl-ranged">1</span>)
+                        </button>
+                    </div>
+
+                    <!-- Heavy Rune Card -->
+                    <div class="rune-card epic" id="card-heavy">
+                        <div class="rune-rarity-tag">EPIC • سلاح الفرسان والدبابات</div>
+                        <div class="rune-card-avatar">🚜</div>
+                        <div class="rune-card-name">Heavy Siege Titan Rune</div>
+                        <div class="rune-card-boost">Boosts: Dino Rider, Chariot, Knight, War Wagon, Tank, Titan Mech</div>
+                        <div class="rune-stat-buff">+<span id="rune-buff-heavy">20</span>% Impact Damage & Resilience</div>
+                        <div class="rune-progress-bar-bg">
+                            <div class="rune-progress-fill" id="rune-fill-heavy" style="width: 20%;"></div>
+                        </div>
+                        <div class="rune-progress-text" id="rune-text-heavy">Cards: 2 / 10</div>
+                        <button class="rune-upgrade-btn" data-rune="heavy">
+                            🪙 Upgrade (Level <span id="rune-lvl-heavy">1</span>)
+                        </button>
+                    </div>
+
+                    <!-- Hero Rune Card -->
+                    <div class="rune-card legendary" id="card-hero">
+                        <div class="rune-rarity-tag">LEGENDARY • قادة الجيوش</div>
+                        <div class="rune-card-avatar">👑</div>
+                        <div class="rune-card-name">Commander Relic Rune</div>
+                        <div class="rune-card-boost">Boosts: Chief Ogg, Leonidas, Joan, Da Vinci, Fox, Cyber Titan X</div>
+                        <div class="rune-stat-buff">+<span id="rune-buff-hero">25</span>% Ultimate Power & Recharge</div>
+                        <div class="rune-progress-bar-bg">
+                            <div class="rune-progress-fill" id="rune-fill-hero" style="width: 20%;"></div>
+                        </div>
+                        <div class="rune-progress-text" id="rune-text-hero">Cards: 1 / 5</div>
+                        <button class="rune-upgrade-btn" data-rune="hero">
+                            💎 Upgrade (Level <span id="rune-lvl-hero">1</span>)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 5. STANDARD BASE UPGRADES MODAL            -->
+        <!-- ========================================== -->
+        <div class="modal-backdrop" id="modal-upgrades">
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <div class="modal-title">Base & Food Upgrades</div>
+                    <button class="modal-close-btn" id="close-upgrades">✕</button>
+                </div>
+                <div class="upgrade-list">
+                    <div class="upgrade-item">
+                        <div class="upgrade-info">
+                            <h4 id="lbl-food-rate-lvl">Food Generator (Lvl 1)</h4>
+                            <p id="lbl-food-rate-desc">Current: +1.2 food/sec</p>
+                        </div>
+                        <button class="upgrade-btn" id="btn-upgrade-food-rate">
+                            🪙 <span id="cost-food-rate">25</span>
+                        </button>
+                    </div>
+
+                    <div class="upgrade-item">
+                        <div class="upgrade-info">
+                            <h4 id="lbl-food-cap-lvl">Food Storage (Lvl 1)</h4>
+                            <p id="lbl-food-cap-desc">Current: 20 max food</p>
+                        </div>
+                        <button class="upgrade-btn" id="btn-upgrade-food-cap">
+                            🪙 <span id="cost-food-cap">25</span>
+                        </button>
+                    </div>
+
+                    <div class="upgrade-item">
+                        <div class="upgrade-info">
+                            <h4 id="lbl-base-hp-lvl">Base Fortification (Lvl 1)</h4>
+                            <p id="lbl-base-hp-desc">Current HP: 500</p>
+                        </div>
+                        <button class="upgrade-btn" id="btn-upgrade-base-hp">
+                            🪙 <span id="cost-base-hp">25</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 6. ERA EVOLUTION MODAL                     -->
+        <!-- ========================================== -->
+        <div class="modal-backdrop" id="modal-evolve">
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <div class="modal-title">Era Evolution</div>
+                    <button class="modal-close-btn" id="close-evolve">✕</button>
+                </div>
+                <div class="evolution-preview">
+                    <h3 id="evolve-next-title">Next: Bronze Age</h3>
+                    <p id="evolve-next-desc">Unlock Spearmen, Archers, and War Chariots! Boost base durability and permanently increase battle strength.</p>
+                </div>
+                <button class="evolve-action-btn" id="btn-confirm-evolve">
+                    🏛️ Evolve Era (🪙 <span id="cost-evolve">250</span>)
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 7. DUNGEON BOSS MODAL                      -->
+        <!-- ========================================== -->
+        <div class="modal-backdrop" id="modal-dungeon">
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <div class="modal-title">Boss Dungeon Challenge</div>
+                    <button class="modal-close-btn" id="close-dungeon">✕</button>
+                </div>
+                <div class="evolution-preview">
+                    <h3 style="color:#c084fc;">Colossal Titan Boss</h3>
+                    <p>Survive the relentless onslaught to earn massive 💎 Gem rewards and ⭐ Mastery Stars!</p>
+                    <p style="margin-top:8px; font-weight:bold; color:#fde047;">Keys Available: <span id="dungeon-keys-count">3</span> / 3</p>
+                </div>
+                <button class="evolve-action-btn" id="btn-start-dungeon" style="background: linear-gradient(135deg, #a855f7, #7e22ce);">
+                    ⚔️ Enter Dungeon (1 Key)
+                </button>
+                <button class="ad-double-btn" id="btn-ad-key" style="margin-top:4px;">
+                    📺 Watch Ad for +1 Dungeon Key
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 8. GAME OVER MODAL                         -->
+        <!-- ========================================== -->
+        <div class="modal-backdrop" id="modal-gameover">
+            <div class="modal-dialog gameover-dialog">
+                <div class="gameover-title" id="gameover-title">VICTORY!</div>
+                <p id="gameover-subtitle">Enemy base has fallen!</p>
+                <div class="reward-box">
+                    <span>Reward:</span>
+                    <span>🪙 +<span id="gameover-coins">50</span></span>
+                </div>
+                <button class="ad-double-btn" id="btn-double-gold">
+                    📺 Double Coins! (+<span id="double-amount">50</span> 🪙)
+                </button>
+                <button class="gameover-continue-btn" id="btn-continue-battle">
+                    ⚔️ Fight Next Wave (معركة جديدة)
+                </button>
+                <button class="gameover-menu-btn" id="btn-menu-return">
+                    🏠 Return to Main Menu (القائمة الرئيسية)
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 9. SESSION STATS MODAL                     -->
+        <!-- ========================================== -->
+        <div class="modal-backdrop" id="modal-stats">
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <div class="modal-title">📊 Career Statistics</div>
+                    <button class="modal-close-btn" id="close-stats">✕</button>
+                </div>
+                <div class="stats-grid" style="margin-top:14px;">
+                    <div class="stat-box primary">
+                        <div class="stat-badge-icon">💀</div>
+                        <div class="stat-num" id="stat-enemies-defeated">0</div>
+                        <div class="stat-label">Enemies Defeated</div>
+                    </div>
+                    <div class="stat-box accent">
+                        <div class="stat-badge-icon">🏛️</div>
+                        <div class="stat-num" id="stat-highest-era">Stone Age</div>
+                        <div class="stat-label">Highest Era</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-badge-icon">🏆</div>
+                        <div class="stat-num" id="stat-victories">0</div>
+                        <div class="stat-label">Victories</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-badge-icon">⚔️</div>
+                        <div class="stat-num" id="stat-battles">0</div>
+                        <div class="stat-label">Battles Fought</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 10. SETTINGS MODAL                         -->
+        <!-- ========================================== -->
+        <div class="modal-backdrop" id="modal-settings">
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <div class="modal-title">⚙️ Game Settings (الإعدادات)</div>
+                    <button class="modal-close-btn" id="close-settings">✕</button>
+                </div>
+                <div class="settings-modal-body">
+                    <!-- Music Setting -->
+                    <div class="settings-row">
+                        <div class="settings-info">
+                            <div class="settings-label">🎵 Background Music</div>
+                            <div class="settings-sub">الموسيقى التصويرية التفاعلية لكل عصر</div>
+                        </div>
+                        <button class="toggle-switch-btn active" id="btn-toggle-music">ON</button>
+                    </div>
+
+                    <!-- Music Volume Slider -->
+                    <div class="settings-slider-row">
+                        <div class="settings-slider-label">
+                            <span>🔊 Music Volume</span>
+                            <span id="music-volume-display">65%</span>
+                        </div>
+                        <input type="range" min="0" max="100" value="65" id="slider-music-volume" class="settings-range">
+                    </div>
+
+                    <!-- Sound Effects Setting -->
+                    <div class="settings-row">
+                        <div class="settings-info">
+                            <div class="settings-label">💥 Sound Effects (SFX)</div>
+                            <div class="settings-sub">المؤثرات الصوتية والضربات والانفجارات</div>
+                        </div>
+                        <button class="toggle-switch-btn active" id="btn-toggle-sfx">ON</button>
+                    </div>
+
+                    <!-- Haptic Vibration Setting -->
+                    <div class="settings-row">
+                        <div class="settings-info">
+                            <div class="settings-label">📳 Haptic Vibration</div>
+                            <div class="settings-sub">اهتزاز الهاتف أثناء المعارك</div>
+                        </div>
+                        <button class="toggle-switch-btn active" id="btn-toggle-haptic">ON</button>
+                    </div>
+
+                    <!-- Current Era Theme Info -->
+                    <div class="settings-era-info-box">
+                        <span class="settings-era-icon" id="settings-current-era-icon">🏛️</span>
+                        <div>
+                            <div class="settings-era-title" id="settings-current-era-title">Soundtrack: Stone Age Drums</div>
+                            <div class="settings-era-sub" id="settings-current-era-sub">طبول حربية ملحمية تتغير تلقائياً مع كل عصر</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="audio.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
