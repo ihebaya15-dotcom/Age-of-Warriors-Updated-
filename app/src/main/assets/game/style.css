@@ -1969,4 +1969,41 @@ html, body {
     transform: translateX(-50%) translateY(0);
 }
 
+.balance-report {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.balance-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #e2e8f0;
+    margin-bottom: 6px;
+}
+
+.balance-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    color: #cbd5e1;
+    padding: 4px 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.balance-row span:nth-child(1) {
+    flex: 1;
+    text-align: left;
+    color: #f8fafc;
+    font-weight: 700;
+}
+
+.balance-empty {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
 

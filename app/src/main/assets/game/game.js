@@ -102,6 +102,42 @@
     // ==========================================
     // 2. CONFIGURATION & ERAS DATA
     // ==========================================
+    const BALANCE = {
+        version: 1,
+        difficulty: 'escalating',
+        flags: {
+            useEnemyBudget: false,
+            useWaves: false,
+            useCounters: false,
+            useDirector: false,
+            useEnemyScaling: false
+        },
+        enemyAI: {
+            initialSpawnDelay: 2.4,
+            spawnIntervalBase: 3.2,
+            spawnIntervalRandom: 2.2,
+            spawnIntervalEraReduction: 0.25,
+            spawnIntervalEraReductionCap: 1.4,
+            spawnIntervalMin: 0.6,
+            composition: { melee: 0.40, ranged: 0.32, heavy: 0.28 },
+            heroDelayBase: 22,
+            heroDelayRandom: 8,
+            heroSpawnOnce: true,
+            budget: { start: 0, perEra: 0, perSecond: 0, cap: 0 },
+            waves: { enabled: false, firstWaveAt: 15, waveGap: 20, unitsPerWave: 3, growthPerEra: 1 },
+            counters: { antiHeavy: 0, antiRanged: 0, antiSwarm: 0 },
+            director: { enabled: false, targetWinRate: 0.55, maxPressure: 1.5, minPressure: 0.75 },
+            scaling: { alpha: 0, cap: 1.0 }
+        },
+        metrics: {
+            targetWinRateEarly: 0.70,
+            targetWinRateLate: 0.50,
+            targetDurationMin: 60,
+            targetDurationMax: 120,
+            battleLogMax: 20
+        }
+    };
+
     const ERAS = [
         {
             name: "Stone Age",
@@ -599,6 +635,7 @@
             this.hapticEnabled = true;
             this.noAdsMode = true;
             this.gameSpeed = 1.0;
+            this.battleLog = [];
 
             // Universal Mastery Tree (Stars-driven cross-era passives)
             this.masteries = {
@@ -675,6 +712,7 @@
                     hapticEnabled: this.hapticEnabled,
                     noAdsMode: this.noAdsMode,
                     gameSpeed: this.gameSpeed,
+                    battleLog: this.battleLog,
                     masteries: this.masteries,
                     runeCards: this.runeCards
                 });
@@ -3469,6 +3507,57 @@
         }
     }
 
+    class EnemyAI {
+        constructor(game) {
+            this.game = game;
+            this.spawnTimer = 0;
+            this.heroTimer = 0;
+            this.heroSpawned = false;
+            this.reset();
+        }
+
+        reset() {
+            const cfg = BALANCE.enemyAI;
+            this.spawnTimer = cfg.initialSpawnDelay;
+            this.heroTimer = cfg.heroDelayBase + Math.random() * cfg.heroDelayRandom;
+            this.heroSpawned = false;
+        }
+
+        pickUnit(era) {
+            const w = BALANCE.enemyAI.composition;
+            const r = Math.random();
+            if (r < w.melee) return era.units[0];
+            if (r < w.melee + w.ranged) return era.units[1];
+            return era.units[2];
+        }
+
+        update(dt) {
+            const game = this.game;
+            if (!game.inBattle || game.battleOver) return;
+            const cfg = BALANCE.enemyAI;
+            const eraIndex = game.stateManager.currentEra;
+            const era = ERAS[eraIndex];
+
+            this.spawnTimer -= dt;
+            if (this.spawnTimer <= 0) {
+                game.spawnEnemyUnit(this.pickUnit(era));
+                const reduction = Math.min(cfg.spawnIntervalEraReductionCap, eraIndex * cfg.spawnIntervalEraReduction);
+                this.spawnTimer = Math.max(
+                    cfg.spawnIntervalMin,
+                    cfg.spawnIntervalBase + Math.random() * cfg.spawnIntervalRandom - reduction
+                );
+            }
+
+            if (!this.heroSpawned && game.enemyUnits.length > 0) {
+                this.heroTimer -= dt;
+                if (this.heroTimer <= 0) {
+                    this.heroSpawned = true;
+                    game.spawnEnemyHero();
+                }
+            }
+        }
+    }
+
     // ==========================================
     // 8. MAIN ENGINE
     // ==========================================
@@ -3493,7 +3582,7 @@
 
             this.food = 2;
             this.unitCooldowns = [0, 0, 0];
-            this.enemySpawnTimer = 2.8;
+            this.enemyAI = new EnemyAI(this);
 
             this.airStrikeCooldown = 0;
             this.airStrikeMaxCooldown = 22.0;
@@ -3506,6 +3595,7 @@
             this.battleCoinsEarned = 0;
             this.isDungeonMode = false;
             this.screenShake = 0;
+            this.resetBattleStats();
 
             this.initDimensions();
             this.generateFieldDecorations();
@@ -3608,12 +3698,11 @@
             this.heroDeployed = false;
             this.heroUltimateCharged = 0;
             this.heroUltimateReady = false;
-            this.enemyHeroSpawned = false;
-            this.enemyHeroTimer = 22 + Math.random() * 8;
-            this.enemySpawnTimer = 2.4;
+            this.enemyAI.reset();
             this.airStrikeCooldown = 0;
             this.battleOver = false;
             this.battleCoinsEarned = 0;
+            this.resetBattleStats();
             this.togglePause(false);
             this.initBases();
             this.closeAllModals();
@@ -3714,6 +3803,23 @@
             if (elModalVictories) elModalVictories.innerText = victoriesCount;
             const elModalBattles = document.getElementById('modal-stat-battles');
             if (elModalBattles) elModalBattles.innerText = battlesCount;
+
+            this.renderBalanceReport();
+        }
+
+        renderBalanceReport() {
+            const el = document.getElementById('balance-report');
+            if (!el) return;
+            const report = this.getBalanceReport();
+            if (!report.totalBattles) {
+                el.innerHTML = '<div class="balance-title">⚖️ Balance Report</div><div class="balance-empty">No battles recorded yet.</div>';
+                return;
+            }
+            const rows = report.eras.map(r => {
+                const eraName = (ERAS[r.era] && ERAS[r.era].name) || ('Era ' + r.era);
+                return `<div class="balance-row"><span>${eraName}</span><span>${r.battles} battles</span><span>${r.winRate}% win</span><span>${r.avgDuration}s</span></div>`;
+            }).join('');
+            el.innerHTML = `<div class="balance-title">⚖️ Balance Report (last ${report.totalBattles})</div>${rows}`;
         }
 
         addBattleGold(amount) {
@@ -3775,6 +3881,7 @@
                 const offset = laneOffsets[this.playerUnits.length % laneOffsets.length] + (Math.random() - 0.5) * 12;
                 unit.targetY = this.laneCenterY + offset;
                 this.playerUnits.push(unit);
+                if (this.battleStats) this.battleStats.playerSpawned++;
 
                 window.soundManager.playSpawn();
                 this.stateManager.haptic(25);
@@ -3790,6 +3897,7 @@
             const offset = laneOffsets[this.enemyUnits.length % laneOffsets.length] + (Math.random() - 0.5) * 12;
             unit.targetY = this.laneCenterY + offset;
             this.enemyUnits.push(unit);
+            if (this.battleStats) this.battleStats.enemySpawned++;
         }
 
         spawnPlayerHero() {
@@ -4020,6 +4128,7 @@
                 this.addBattleGold(rewardCoins);
             }
 
+            this.recordBattleResult(victory);
             this.stateManager.saveState();
             this.stateManager.haptic(75);
 
@@ -4031,6 +4140,60 @@
                 document.getElementById('double-amount').innerText = rewardCoins;
                 document.getElementById('modal-gameover').classList.add('active');
             }, 700);
+        }
+
+        resetBattleStats() {
+            this.battleStats = {
+                elapsed: 0,
+                peakPlayer: 0,
+                peakEnemy: 0,
+                enemySpawned: 0,
+                playerSpawned: 0,
+                era: this.stateManager.currentEra,
+                dungeon: !!this.isDungeonMode
+            };
+        }
+
+        recordBattleResult(victory) {
+            const stats = this.battleStats || {};
+            const pb = this.playerBase;
+            const playerHpPct = pb && pb.maxHp ? Math.max(0, pb.hp / pb.maxHp) : 0;
+            const entry = {
+                t: Date.now(),
+                era: (stats.era !== undefined ? stats.era : this.stateManager.currentEra),
+                dungeon: !!stats.dungeon,
+                victory: !!victory,
+                duration: Math.round((stats.elapsed || 0) * 10) / 10,
+                peakPlayer: stats.peakPlayer || 0,
+                peakEnemy: stats.peakEnemy || 0,
+                playerHpPct: Math.round(playerHpPct * 100)
+            };
+            if (!Array.isArray(this.stateManager.battleLog)) this.stateManager.battleLog = [];
+            this.stateManager.battleLog.push(entry);
+            const max = BALANCE.metrics.battleLogMax || 20;
+            if (this.stateManager.battleLog.length > max) {
+                this.stateManager.battleLog.splice(0, this.stateManager.battleLog.length - max);
+            }
+            try { console.log('[BattleMetrics]', JSON.stringify(entry)); } catch (e) {}
+        }
+
+        getBalanceReport() {
+            const log = (this.stateManager.battleLog || []).slice();
+            const byEra = {};
+            for (const e of log) {
+                const k = e.era;
+                if (!byEra[k]) byEra[k] = { battles: 0, wins: 0, durationSum: 0 };
+                byEra[k].battles++;
+                if (e.victory) byEra[k].wins++;
+                byEra[k].durationSum += e.duration || 0;
+            }
+            const eras = Object.keys(byEra).map(k => ({
+                era: Number(k),
+                battles: byEra[k].battles,
+                winRate: byEra[k].battles ? Math.round((byEra[k].wins / byEra[k].battles) * 100) : 0,
+                avgDuration: byEra[k].battles ? Math.round((byEra[k].durationSum / byEra[k].battles) * 10) / 10 : 0
+            })).sort((a, b) => a.era - b.era);
+            return { totalBattles: log.length, eras };
         }
 
         startLoop() {
@@ -4098,27 +4261,11 @@
                 this.airStrikeCooldown = Math.max(0, this.airStrikeCooldown - dt);
             }
 
-            // Enemy Commander AI
-            this.enemySpawnTimer -= dt;
-            if (this.enemySpawnTimer <= 0 && !this.battleOver) {
-                const era = ERAS[this.stateManager.currentEra];
-                const rand = Math.random();
-                let chosen = era.units[0];
-                if (rand > 0.72) chosen = era.units[2];
-                else if (rand > 0.40) chosen = era.units[1];
+            this.enemyAI.update(dt);
 
-                this.spawnEnemyUnit(chosen);
-                this.enemySpawnTimer = 3.2 + Math.random() * 2.2 - Math.min(1.4, this.stateManager.currentEra * 0.25);
-            }
-
-            // Enemy Hero Spawn Trigger
-            if (!this.enemyHeroSpawned && !this.battleOver && this.enemyUnits.length > 0) {
-                this.enemyHeroTimer -= dt;
-                if (this.enemyHeroTimer <= 0) {
-                    this.enemyHeroSpawned = true;
-                    this.spawnEnemyHero();
-                }
-            }
+            this.battleStats.elapsed += dt;
+            if (this.playerUnits.length > this.battleStats.peakPlayer) this.battleStats.peakPlayer = this.playerUnits.length;
+            if (this.enemyUnits.length > this.battleStats.peakEnemy) this.battleStats.peakEnemy = this.enemyUnits.length;
 
             // Update Base Hit Shakes & Torch Animations
             if (this.playerBase) this.playerBase.update(dt);
@@ -5261,6 +5408,8 @@
     window.addEventListener('DOMContentLoaded', () => {
         game = new GameEngine2D();
         window.gameInstance = game;
+        window.BALANCE = BALANCE;
+        window.getBalanceReport = () => game.getBalanceReport();
     });
 
     window.onRewardedAdSuccess = function (placement) {
