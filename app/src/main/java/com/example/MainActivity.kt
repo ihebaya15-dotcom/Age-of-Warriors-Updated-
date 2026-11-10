@@ -226,7 +226,7 @@ fun RewardedAdModal(
     onDismiss: () -> Unit,
     onRewardGranted: () -> Unit
 ) {
-    var secondsLeft by remember { mutableIntStateOf(5) }
+    var secondsLeft by remember { mutableIntStateOf(3) }
     var rewardEarned by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -237,7 +237,7 @@ fun RewardedAdModal(
         rewardEarned = true
     }
 
-    val progress = (5 - secondsLeft) / 5f
+    val progress = (3 - secondsLeft) / 3f
     val animatedProgress by animateFloatAsState(targetValue = progress, label = "ad_progress")
 
     val placementTitle = when (placement) {
@@ -290,7 +290,16 @@ fun RewardedAdModal(
                         )
                     }
 
-                    if (rewardEarned) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (!rewardEarned) {
+                            Text(
+                                text = "Reward in: ${secondsLeft}s",
+                                color = Color.LightGray,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
                         IconButton(
                             onClick = onDismiss,
                             modifier = Modifier
@@ -303,13 +312,6 @@ fun RewardedAdModal(
                                 tint = Color.White
                             )
                         }
-                    } else {
-                        Text(
-                            text = "Reward in: ${secondsLeft}s",
-                            color = Color.LightGray,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
                     }
                 }
 
@@ -399,7 +401,7 @@ fun RewardedAdModal(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (rewardEarned) "CLAIM REWARD NOW!" else "Watching Ad ($secondsLeft)",
+                        text = if (rewardEarned) "CLAIM REWARD NOW!" else "Please wait (${secondsLeft}s)",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (rewardEarned) Color.White else Color.Gray

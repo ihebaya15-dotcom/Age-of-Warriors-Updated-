@@ -597,6 +597,7 @@
             this.musicEnabled = true;
             this.musicVolume = 0.65;
             this.hapticEnabled = true;
+            this.noAdsMode = true;
             this.gameSpeed = 1.0;
 
             // Universal Mastery Tree (Stars-driven cross-era passives)
@@ -672,6 +673,7 @@
                     musicEnabled: this.musicEnabled,
                     musicVolume: this.musicVolume,
                     hapticEnabled: this.hapticEnabled,
+                    noAdsMode: this.noAdsMode,
                     gameSpeed: this.gameSpeed,
                     masteries: this.masteries,
                     runeCards: this.runeCards
@@ -4857,32 +4859,20 @@
                     this.stateManager.saveState();
                     this.updateHUD();
                 } else {
-                    alert("Out of Dungeon Keys! Watch an ad to get +1 Key.");
+                    this.showToast("Out of Dungeon Keys! Tap the 🗝️ ad button to get +1.");
                 }
             });
 
             document.getElementById('btn-free-food').addEventListener('click', () => {
-                if (window.AndroidBridge && typeof window.AndroidBridge.triggerRewardedAd === 'function') {
-                    window.AndroidBridge.triggerRewardedAd('emergency_food');
-                } else {
-                    window.onRewardedAdSuccess('emergency_food');
-                }
+                this.requestReward('emergency_food');
             });
 
             document.getElementById('btn-ad-key').addEventListener('click', () => {
-                if (window.AndroidBridge && typeof window.AndroidBridge.triggerRewardedAd === 'function') {
-                    window.AndroidBridge.triggerRewardedAd('dungeon_key');
-                } else {
-                    window.onRewardedAdSuccess('dungeon_key');
-                }
+                this.requestReward('dungeon_key');
             });
 
             document.getElementById('btn-double-gold').addEventListener('click', () => {
-                if (window.AndroidBridge && typeof window.AndroidBridge.triggerRewardedAd === 'function') {
-                    window.AndroidBridge.triggerRewardedAd('double_gold');
-                } else {
-                    window.onRewardedAdSuccess('double_gold');
-                }
+                this.requestReward('double_gold');
             });
 
             document.getElementById('btn-continue-battle').addEventListener('click', () => {
@@ -5115,6 +5105,42 @@
                     if (this.stateManager.hapticEnabled) this.stateManager.haptic(50);
                 });
             }
+
+            // Instant Rewards (No Ads) Toggle Button inside Settings
+            const btnToggleNoAds = document.getElementById('btn-toggle-noads');
+            if (btnToggleNoAds) {
+                btnToggleNoAds.addEventListener('click', () => {
+                    this.stateManager.noAdsMode = !this.stateManager.noAdsMode;
+                    this.stateManager.saveState();
+                    this.updateSettingsUI();
+                    this.stateManager.haptic(30);
+                });
+            }
+        }
+
+        requestReward(placement) {
+            if (this.stateManager.noAdsMode) {
+                window.onRewardedAdSuccess(placement);
+                return;
+            }
+            if (window.AndroidBridge && typeof window.AndroidBridge.triggerRewardedAd === 'function') {
+                window.AndroidBridge.triggerRewardedAd(placement);
+            } else {
+                window.onRewardedAdSuccess(placement);
+            }
+        }
+
+        showToast(message) {
+            let toast = document.getElementById('game-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'game-toast';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = message;
+            toast.classList.add('show');
+            clearTimeout(this._toastTimer);
+            this._toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
         }
 
         updateSettingsUI() {
@@ -5138,6 +5164,11 @@
             if (btnHaptic) {
                 btnHaptic.innerText = this.stateManager.hapticEnabled ? "ON" : "OFF";
                 btnHaptic.classList.toggle('active', this.stateManager.hapticEnabled);
+            }
+            const btnNoAds = document.getElementById('btn-toggle-noads');
+            if (btnNoAds) {
+                btnNoAds.innerText = this.stateManager.noAdsMode ? "ON" : "OFF";
+                btnNoAds.classList.toggle('active', this.stateManager.noAdsMode);
             }
 
             // Era theme descriptions for soundtrack
