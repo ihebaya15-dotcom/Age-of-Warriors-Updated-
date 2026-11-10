@@ -4771,12 +4771,18 @@
                 });
             }
 
-            document.getElementById('btn-open-upgrades').addEventListener('click', () => {
-                document.getElementById('modal-upgrades').classList.add('active');
-            });
-            document.getElementById('close-upgrades').addEventListener('click', () => {
-                document.getElementById('modal-upgrades').classList.remove('active');
-            });
+            const btnOpenUpgrades = document.getElementById('btn-open-upgrades');
+            if (btnOpenUpgrades) {
+                btnOpenUpgrades.addEventListener('click', () => {
+                    document.getElementById('modal-upgrades').classList.add('active');
+                });
+            }
+            const closeUpgrades = document.getElementById('close-upgrades');
+            if (closeUpgrades) {
+                closeUpgrades.addEventListener('click', () => {
+                    document.getElementById('modal-upgrades').classList.remove('active');
+                });
+            }
 
             document.getElementById('btn-upgrade-food-rate').addEventListener('click', () => {
                 const cost = this.stateManager.getUpgradeCost('rate');
@@ -4812,12 +4818,18 @@
                 }
             });
 
-            document.getElementById('btn-open-evolve').addEventListener('click', () => {
-                document.getElementById('modal-evolve').classList.add('active');
-            });
-            document.getElementById('close-evolve').addEventListener('click', () => {
-                document.getElementById('modal-evolve').classList.remove('active');
-            });
+            const btnOpenEvolve = document.getElementById('btn-open-evolve');
+            if (btnOpenEvolve) {
+                btnOpenEvolve.addEventListener('click', () => {
+                    document.getElementById('modal-evolve').classList.add('active');
+                });
+            }
+            const closeEvolve = document.getElementById('close-evolve');
+            if (closeEvolve) {
+                closeEvolve.addEventListener('click', () => {
+                    document.getElementById('modal-evolve').classList.remove('active');
+                });
+            }
 
             document.getElementById('btn-confirm-evolve').addEventListener('click', () => {
                 if (this.stateManager.currentEra >= ERAS.length - 1) return;
@@ -4844,12 +4856,18 @@
                 }
             });
 
-            document.getElementById('btn-open-dungeon').addEventListener('click', () => {
-                document.getElementById('modal-dungeon').classList.add('active');
-            });
-            document.getElementById('close-dungeon').addEventListener('click', () => {
-                document.getElementById('modal-dungeon').classList.remove('active');
-            });
+            const btnOpenDungeon = document.getElementById('btn-open-dungeon');
+            if (btnOpenDungeon) {
+                btnOpenDungeon.addEventListener('click', () => {
+                    document.getElementById('modal-dungeon').classList.add('active');
+                });
+            }
+            const closeDungeon = document.getElementById('close-dungeon');
+            if (closeDungeon) {
+                closeDungeon.addEventListener('click', () => {
+                    document.getElementById('modal-dungeon').classList.remove('active');
+                });
+            }
 
             document.getElementById('btn-start-dungeon').addEventListener('click', () => {
                 if (this.stateManager.dungeonKeys > 0) {
