@@ -15,8 +15,12 @@ class SoundManager {
         // Sequencer clock
         this.isPlayingMusic = false;
         this.currentStep = 0;
+        this.barCount = 0;
         this.nextNoteTime = 0;
         this.timerID = null;
+
+        // Dynamic mix: 1.0 = full music, lower while menus/pause are open
+        this.duckFactor = 1.0;
 
         // Musical frequencies (Hz)
         this.N = {
@@ -41,7 +45,7 @@ class SoundManager {
 
                 // Master Music Gain
                 this.musicGain = this.ctx.createGain();
-                this.musicGain.gain.value = this.musicEnabled ? (this.musicVolume * 0.42) : 0.0;
+                this.musicGain.gain.value = this.musicEnabled ? (this.musicVolume * 0.42 * this.duckFactor) : 0.0;
                 this.musicGain.connect(this.ctx.destination);
             }
         }
@@ -66,10 +70,7 @@ class SoundManager {
 
     setMusicEnabled(val) {
         this.musicEnabled = val;
-        if (this.musicGain && this.ctx) {
-            const target = val ? (this.musicVolume * 0.42) : 0.0;
-            this.musicGain.gain.setValueAtTime(target, this.ctx.currentTime);
-        }
+        this.applyMusicGain(true);
         if (val) {
             this.init();
             if (!this.isPlayingMusic) this.startMusic();
@@ -80,15 +81,41 @@ class SoundManager {
 
     setMusicVolume(vol) {
         this.musicVolume = Math.max(0, Math.min(1, vol));
-        if (this.musicGain && this.ctx && this.musicEnabled) {
-            this.musicGain.gain.setValueAtTime(this.musicVolume * 0.42, this.ctx.currentTime);
+        this.applyMusicGain(true);
+    }
+
+    applyMusicGain(smooth = false) {
+        if (!this.musicGain || !this.ctx) return;
+        const target = this.musicEnabled ? (this.musicVolume * 0.42 * this.duckFactor) : 0.0;
+        if (smooth) {
+            this.musicGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.12);
+        } else {
+            this.musicGain.gain.setValueAtTime(target, this.ctx.currentTime);
         }
     }
 
+    // Duck the music while menus/pause/game-over overlays are shown
+    setDuck(factor) {
+        this.duckFactor = Math.max(0, Math.min(1, factor));
+        this.applyMusicGain(true);
+    }
+
     setEra(eraIndex) {
+        if (eraIndex === this.currentEra && this.isPlayingMusic) return;
         this.currentEra = eraIndex;
-        // Reset measure step on era evolve so theme aligns cleanly
+        // Reset phrase on era evolve so the new theme aligns cleanly
         this.currentStep = 0;
+        this.barCount = 0;
+        // Brief crossfade so the instrument switch is not jarring
+        if (this.ctx && this.musicGain && this.musicEnabled) {
+            const t = this.ctx.currentTime;
+            const target = this.musicVolume * 0.42 * this.duckFactor;
+            const g = this.musicGain.gain;
+            g.cancelScheduledValues(t);
+            g.setValueAtTime(g.value, t);
+            g.linearRampToValueAtTime(0.0, t + 0.18);
+            g.linearRampToValueAtTime(target, t + 0.55);
+        }
     }
 
     // ==========================================
@@ -100,6 +127,7 @@ class SoundManager {
 
         this.isPlayingMusic = true;
         this.currentStep = 0;
+        this.barCount = 0;
         this.nextNoteTime = this.ctx.currentTime + 0.05;
 
         const scheduleLoop = () => {
@@ -111,6 +139,7 @@ class SoundManager {
                 const stepDuration = this.getStepDuration();
                 this.nextNoteTime += stepDuration;
                 this.currentStep = (this.currentStep + 1) % 16;
+                if (this.currentStep === 0) this.barCount = (this.barCount + 1) % 1000000;
             }
             this.timerID = setTimeout(scheduleLoop, 25);
         };
@@ -172,6 +201,9 @@ class SoundManager {
 
     // --- Era 0: Stone Age (Tribal War Drums, Earthy Bass, Primitive Flute) ---
     playStoneAgeTrack(step, time) {
+        const v = this.barCount % 2;
+        const fill = (this.barCount % 4) === 3;
+
         // Primal Kick Drum (heavy heartbeat pulse)
         if (step === 0 || step === 6 || step === 8 || step === 14) {
             this.synthKick(time, 130, 32, 0.22, 0.35);
@@ -188,22 +220,28 @@ class SoundManager {
             this.synthShaker(time, 0.08);
         }
 
+        // Bar-end tribal fill every 4th bar
+        if (fill && (step === 13 || step === 15)) {
+            this.synthTom(time, step === 13 ? 240 : 200, 0.14, 0.24);
+        }
+
         // Earthy Drone Bass (A2 - G2 - D2)
         if (step === 0) {
             this.synthBassNote(time, this.N['A1'], 0.5, 'triangle', 0.28);
         } else if (step === 8) {
-            this.synthBassNote(time, this.N['D2'], 0.5, 'triangle', 0.26);
+            this.synthBassNote(time, v ? this.N['F2'] : this.N['D2'], 0.5, 'triangle', 0.26);
         }
 
-        // Primitive Pentatonic Bone Flute Melody
-        const fluteNotes = {
-            0: this.N['A3'],
-            4: this.N['C4'],
-            7: this.N['D4'],
-            10: this.N['C4'],
-            12: this.N['G3'],
-            14: this.N['A3']
+        // Primitive Pentatonic Bone Flute Melody (A/B phrases)
+        const fluteA = {
+            0: this.N['A3'], 4: this.N['C4'], 7: this.N['D4'],
+            10: this.N['C4'], 12: this.N['G3'], 14: this.N['A3']
         };
+        const fluteB = {
+            0: this.N['A3'], 4: this.N['C4'], 7: this.N['E4'],
+            10: this.N['D4'], 12: this.N['A3'], 14: this.N['G3']
+        };
+        const fluteNotes = v ? fluteB : fluteA;
         if (fluteNotes[step]) {
             this.synthFluteNote(time, fluteNotes[step], 0.25, 0.18);
         }
@@ -211,6 +249,9 @@ class SoundManager {
 
     // --- Era 1: Bronze Age (Pharaonic Desert March, Doumbek, Exotic Oud Pluck) ---
     playBronzeAgeTrack(step, time) {
+        const v = this.barCount % 2;
+        const fill = (this.barCount % 4) === 3;
+
         // Doumbek Rhythm (Dum-Tak-Tak-Dum-Tak)
         if (step === 0 || step === 6 || step === 10) {
             this.synthKick(time, 140, 45, 0.18, 0.32); // Deep Dum
@@ -221,23 +262,25 @@ class SoundManager {
         if (step % 2 === 1) {
             this.synthTambourine(time, 0.09);
         }
+        if (fill && (step === 13 || step === 15)) {
+            this.synthRim(time, 0.16);
+        }
 
         // Desert Bass (D2 - Eb2 - D2)
         if (step === 0) this.synthBassNote(time, this.N['D2'], 0.45, 'sawtooth', 0.22);
-        if (step === 6) this.synthBassNote(time, this.N['Eb2'], 0.35, 'sawtooth', 0.20);
+        if (step === 6) this.synthBassNote(time, v ? this.N['F2'] : this.N['Eb2'], 0.35, 'sawtooth', 0.20);
         if (step === 10) this.synthBassNote(time, this.N['D2'], 0.45, 'sawtooth', 0.22);
 
         // Plucked Desert Oud / Sitar (Phrygian Dominant: D - Eb - F# - G - A)
-        const oudNotes = {
-            0: this.N['D4'],
-            2: this.N['Eb4'],
-            4: this.N['F#4'],
-            6: this.N['G4'],
-            8: this.N['A4'],
-            10: this.N['Bb4'],
-            12: this.N['A4'],
-            14: this.N['F#4']
+        const oudA = {
+            0: this.N['D4'], 2: this.N['Eb4'], 4: this.N['F#4'], 6: this.N['G4'],
+            8: this.N['A4'], 10: this.N['Bb4'], 12: this.N['A4'], 14: this.N['F#4']
         };
+        const oudB = {
+            0: this.N['D4'], 2: this.N['Eb4'], 4: this.N['F#4'], 6: this.N['G4'],
+            8: this.N['A4'], 10: this.N['C5'], 12: this.N['Bb4'], 14: this.N['A4']
+        };
+        const oudNotes = v ? oudB : oudA;
         if (oudNotes[step]) {
             this.synthPluck(time, oudNotes[step], 0.22, 0.22);
         }
@@ -245,6 +288,9 @@ class SoundManager {
 
     // --- Era 2: Iron Age (Medieval Knights Fanfare, Marching Snare, French Horns) ---
     playIronAgeTrack(step, time) {
+        const v = this.barCount % 2;
+        const fill = (this.barCount % 4) === 3;
+
         // Marching Snare & Bass Cadence
         if (step === 0 || step === 8) {
             this.synthKick(time, 120, 40, 0.2, 0.35);
@@ -255,23 +301,27 @@ class SoundManager {
         if (step === 14 || step === 15) {
             this.synthSnare(time, 0.16); // Military roll
         }
+        if (fill && step === 13) {
+            this.synthSnare(time, 0.14);
+        }
         if (step % 2 === 0) {
             this.synthShaker(time, 0.07);
         }
 
         // Chivalric Bass (D2 -> F2 -> C2 -> G2)
         if (step === 0) this.synthBassNote(time, this.N['D2'], 0.4, 'triangle', 0.28);
-        if (step === 8) this.synthBassNote(time, this.N['C2'], 0.4, 'triangle', 0.28);
+        if (step === 8) this.synthBassNote(time, v ? this.N['F2'] : this.N['C2'], 0.4, 'triangle', 0.28);
 
-        // Noble Brass Horn Fanfare (D minor heraldic anthem)
-        const hornNotes = {
-            0: this.N['D3'],
-            2: this.N['F3'],
-            4: this.N['A3'],
-            8: this.N['C4'],
-            10: this.N['D4'],
-            12: this.N['A3']
+        // Noble Brass Horn Fanfare (D minor heraldic anthem, A/B phrases)
+        const hornA = {
+            0: this.N['D3'], 2: this.N['F3'], 4: this.N['A3'],
+            8: this.N['C4'], 10: this.N['D4'], 12: this.N['A3']
         };
+        const hornB = {
+            0: this.N['D3'], 2: this.N['F3'], 4: this.N['A3'],
+            8: this.N['C4'], 10: this.N['D4'], 12: this.N['G3'], 14: this.N['F3']
+        };
+        const hornNotes = v ? hornB : hornA;
         if (hornNotes[step]) {
             this.synthBrassHorn(time, hornNotes[step], 0.32, 0.22);
         }
@@ -279,6 +329,9 @@ class SoundManager {
 
     // --- Era 3: Modern War (High-Octane Techno/Industrial War Pulse) ---
     playModernWarTrack(step, time) {
+        const v = this.barCount % 2;
+        const fill = (this.barCount % 4) === 3;
+
         // Punchy 4-on-the-Floor Electronic Kick
         if (step % 4 === 0) {
             this.synthKick(time, 160, 28, 0.15, 0.42);
@@ -288,28 +341,33 @@ class SoundManager {
         if (step === 4 || step === 12) {
             this.synthSnare(time, 0.32);
         }
+        if (fill && step === 15) {
+            this.synthSnare(time, 0.2);
+        }
 
         // Hi-Hat on offbeats
         if (step % 2 === 1) {
             this.synthHiHat(time, step % 4 === 2, 0.14);
         }
 
-        // Rolling 16th-note Synth Bassline
-        const bassNotes = [this.N['E2'], this.N['E2'], this.N['G2'], this.N['E2'],
-                           this.N['A2'], this.N['E2'], this.N['G2'], this.N['E2']];
+        // Rolling 16th-note Synth Bassline (A/B pattern)
+        const bassA = [this.N['E2'], this.N['E2'], this.N['G2'], this.N['E2'],
+                       this.N['A2'], this.N['E2'], this.N['G2'], this.N['E2']];
+        const bassB = [this.N['E2'], this.N['E2'], this.N['G2'], this.N['E2'],
+                       this.N['B2'], this.N['E2'], this.N['D3'], this.N['E2']];
+        const bassNotes = v ? bassB : bassA;
         this.synthBassNote(time, bassNotes[step % 8], 0.12, 'sawtooth', 0.24);
 
-        // Arpeggiated Cyber War Lead
-        const arpNotes = {
-            0: this.N['E4'],
-            2: this.N['G4'],
-            4: this.N['B4'],
-            6: this.N['D5'],
-            8: this.N['E5'],
-            10: this.N['D5'],
-            12: this.N['B4'],
-            14: this.N['G4']
+        // Arpeggiated Cyber War Lead (A/B phrases)
+        const arpA = {
+            0: this.N['E4'], 2: this.N['G4'], 4: this.N['B4'], 6: this.N['D5'],
+            8: this.N['E5'], 10: this.N['D5'], 12: this.N['B4'], 14: this.N['G4']
         };
+        const arpB = {
+            0: this.N['E4'], 2: this.N['G4'], 4: this.N['B4'], 6: this.N['D5'],
+            8: this.N['F#5'], 10: this.N['E5'], 12: this.N['D5'], 14: this.N['B4']
+        };
+        const arpNotes = v ? arpB : arpA;
         if (arpNotes[step]) {
             this.synthSynthLead(time, arpNotes[step], 0.14, 0.16);
         }
@@ -579,6 +637,38 @@ class SoundManager {
         osc2.stop(time + dur + 0.02);
     }
 
+    synthTrumpetNote(time, freq, dur, gainAmt = 0.18) {
+        if (!this.ctx || !this.musicGain) return;
+        const osc1 = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const filter = this.ctx.createBiquadFilter();
+        const gain = this.ctx.createGain();
+
+        osc1.type = 'sawtooth';
+        osc2.type = 'square';
+        osc1.frequency.setValueAtTime(freq, time);
+        osc2.frequency.setValueAtTime(freq * 1.004, time);
+
+        filter.type = 'lowpass';
+        filter.Q.value = 1.2;
+        filter.frequency.setValueAtTime(3200, time);
+        filter.frequency.exponentialRampToValueAtTime(1200, time + dur);
+
+        gain.gain.setValueAtTime(0.001, time);
+        gain.gain.linearRampToValueAtTime(gainAmt, time + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.musicGain);
+
+        osc1.start(time);
+        osc2.start(time);
+        osc1.stop(time + dur + 0.02);
+        osc2.stop(time + dur + 0.02);
+    }
+
     synthSynthLead(time, freq, dur, gainAmt = 0.16) {
         if (!this.ctx || !this.musicGain) return;
         const osc = this.ctx.createOscillator();
@@ -832,29 +922,34 @@ class SoundManager {
     }
     // --- Era 3: Renaissance Age (Baroque Harpsichord, Fife & Military March) ---
     playRenaissanceTrack(step, time) {
+        const v = this.barCount % 2;
+        const fill = (this.barCount % 4) === 3;
+
         // Field Marching Snare
         if (step % 4 === 2) {
-            this.synthSnare(time, 0.12, 0.25);
+            this.synthSnare(time, 0.12);
         } else if (step % 2 === 1) {
             this.synthShaker(time, 0.05);
+        }
+        if (fill && step === 13) {
+            this.synthSnare(time, 0.12);
         }
         // Regal Bass Trombone (C3 - G2 - A2 - F2)
         if (step === 0) {
             this.synthBassNote(time, this.N['C3'], 0.45, 'sawtooth', 0.26);
         } else if (step === 8) {
-            this.synthBassNote(time, this.N['G2'], 0.45, 'sawtooth', 0.24);
+            this.synthBassNote(time, v ? this.N['A2'] : this.N['G2'], 0.45, 'sawtooth', 0.24);
         }
-        // Harpsichord / Fife Melody (Baroque Fanfare)
-        const renaissanceMelody = {
-            0: this.N['G4'],
-            2: this.N['C5'],
-            4: this.N['E5'],
-            6: this.N['D5'],
-            8: this.N['C5'],
-            10: this.N['B4'],
-            12: this.N['C5'],
-            14: this.N['D5']
+        // Harpsichord / Fife Melody (Baroque Fanfare, A/B phrases)
+        const renA = {
+            0: this.N['G4'], 2: this.N['C5'], 4: this.N['E5'], 6: this.N['D5'],
+            8: this.N['C5'], 10: this.N['B4'], 12: this.N['C5'], 14: this.N['D5']
         };
+        const renB = {
+            0: this.N['G4'], 2: this.N['C5'], 4: this.N['E5'], 6: this.N['D5'],
+            8: this.N['E5'], 10: this.N['D5'], 12: this.N['C5'], 14: this.N['B4']
+        };
+        const renaissanceMelody = v ? renB : renA;
         if (renaissanceMelody[step]) {
             this.synthTrumpetNote(time, renaissanceMelody[step], 0.22, 0.18);
         }
@@ -862,31 +957,40 @@ class SoundManager {
 
     // --- Era 5: Cyber Future (Synthwave Cyberpunk, Acid Arp & Neon Lead) ---
     playCyberFutureTrack(step, time) {
+        const v = this.barCount % 2;
+        const fill = (this.barCount % 4) === 3;
+
         // Electronic 808 Kick
         if (step === 0 || step === 8) {
             this.synthKick(time, 150, 28, 0.25, 0.38);
         }
         // Electro Clap / Snare
         if (step === 4 || step === 12) {
-            this.synthSnare(time, 0.14, 0.32);
+            this.synthSnare(time, 0.14);
         }
         // Hi-Hat Tick
-        this.synthHiHat(time, step % 4 === 2 ? 0.08 : 0.04);
+        this.synthHiHat(time, step % 4 === 2, step % 4 === 2 ? 0.08 : 0.04);
+        if (fill && step === 15) {
+            this.synthHiHat(time, false, 0.1);
+        }
 
-        // Cyber Arpeggiated Bass (16th notes F2 - Ab2 - Bb2 - C3)
-        const arpNotes = [this.N['F2'], this.N['Ab2'], this.N['C3'], this.N['Eb3']];
+        // Cyber Arpeggiated Bass (16th notes, A/B pattern)
+        const arpA = [this.N['F2'], this.N['Ab2'], this.N['C3'], this.N['Eb3']];
+        const arpB = [this.N['F2'], this.N['Ab2'], this.N['C3'], this.N['F3']];
+        const arpNotes = v ? arpB : arpA;
         const note = arpNotes[step % arpNotes.length];
         this.synthBassNote(time, note, 0.16, 'sawtooth', 0.22);
 
-        // Neon Synth Lead Melody
-        const cyberLead = {
-            0: this.N['F4'],
-            4: this.N['Ab4'],
-            6: this.N['Bb4'],
-            8: this.N['C5'],
-            11: this.N['Eb5'],
-            14: this.N['C5']
+        // Neon Synth Lead Melody (A/B phrases)
+        const cyberA = {
+            0: this.N['F4'], 4: this.N['Ab4'], 6: this.N['Bb4'],
+            8: this.N['C5'], 11: this.N['Eb5'], 14: this.N['C5']
         };
+        const cyberB = {
+            0: this.N['F4'], 4: this.N['Ab4'], 6: this.N['Bb4'],
+            8: this.N['C5'], 11: this.N['F5'], 14: this.N['Eb5']
+        };
+        const cyberLead = v ? cyberB : cyberA;
         if (cyberLead[step]) {
             this.synthTrumpetNote(time, cyberLead[step], 0.28, 0.20);
         }

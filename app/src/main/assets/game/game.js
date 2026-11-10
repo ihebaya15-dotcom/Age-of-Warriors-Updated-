@@ -5134,6 +5134,14 @@
                     this.stateManager.haptic(30);
                 });
             }
+
+            // Duck background music whenever any modal overlay is open
+            const modalEls = document.querySelectorAll('.modal-backdrop');
+            if (window.MutationObserver && modalEls.length) {
+                const duckObserver = new MutationObserver(() => this.updateMusicDuck());
+                modalEls.forEach(m => duckObserver.observe(m, { attributes: true, attributeFilter: ['class'] }));
+            }
+            this.updateMusicDuck();
         }
 
         requestReward(placement) {
@@ -5194,7 +5202,9 @@
                 { title: "Soundtrack: Stone Age Drums", sub: "إيقاعات طبول حجرية وبدائية ملحمية 🪓", icon: "🪓" },
                 { title: "Soundtrack: Desert Oud & Pharaonic March", sub: "مارش صحراوي فرعوني ونغمات عود شرقية 🐪", icon: "🏛️" },
                 { title: "Soundtrack: Medieval Knights Fanfare", sub: "أناشيد الفرسان وطبول الحرب والأبواق الملكية ⚔️", icon: "🛡️" },
-                { title: "Soundtrack: Driving Electro War Pulse", sub: "مارش إلكتروني حماسي بطاقة المعارك الحديثة 🔫", icon: "🚀" }
+                { title: "Soundtrack: Baroque Fife & Harpsichord", sub: "نغمات باروكية وناي ميداني ومارش عسكري 🎺", icon: "🎻" },
+                { title: "Soundtrack: Driving Electro War Pulse", sub: "مارش إلكتروني حماسي بطاقة المعارك الحديثة 🔫", icon: "🚀" },
+                { title: "Soundtrack: Synthwave Cyber Pulse", sub: "موجة سنثوية نيون وإيقاع مستقبلي 🌌", icon: "🌌" }
             ];
             const currentSoundtrack = eraSoundtracks[this.stateManager.currentEra] || eraSoundtracks[0];
             const elEraTitle = document.getElementById('settings-current-era-title');
@@ -5210,6 +5220,12 @@
                 btnSound.innerText = isAudioOn ? "🔊" : "🔇";
                 btnSound.classList.toggle('active', isAudioOn);
             }
+        }
+
+        updateMusicDuck() {
+            if (!window.soundManager || typeof window.soundManager.setDuck !== 'function') return;
+            const factor = this.hasActiveModal() ? 0.35 : (this.isPaused ? 0.25 : 1.0);
+            window.soundManager.setDuck(factor);
         }
 
         hasActiveModal() {
@@ -5228,6 +5244,7 @@
             if (pauseBanner) {
                 pauseBanner.classList.toggle('hidden', !this.isPaused);
             }
+            this.updateMusicDuck();
             this.stateManager.haptic(25);
         }
 
