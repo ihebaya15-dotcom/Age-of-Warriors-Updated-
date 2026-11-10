@@ -103,14 +103,14 @@
     // 2. CONFIGURATION & ERAS DATA
     // ==========================================
     const BALANCE = {
-        version: 1,
+        version: 2,
         difficulty: 'escalating',
         flags: {
-            useEnemyBudget: false,
-            useWaves: false,
+            useEnemyBudget: true,
+            useWaves: true,
             useCounters: false,
             useDirector: false,
-            useEnemyScaling: false
+            useEnemyScaling: true
         },
         enemyAI: {
             initialSpawnDelay: 2.4,
@@ -123,11 +123,22 @@
             heroDelayBase: 22,
             heroDelayRandom: 8,
             heroSpawnOnce: true,
-            budget: { start: 0, perEra: 0, perSecond: 0, cap: 0 },
-            waves: { enabled: false, firstWaveAt: 15, waveGap: 20, unitsPerWave: 3, growthPerEra: 1 },
+            budget: {
+                start: 6,
+                incomeBase: 1.15,
+                incomePerEra: 0.5,
+                incomeRampMax: 0.6,
+                incomeRampSeconds: 75,
+                cap: 34,
+                retryDelay: 0.25,
+                waveIncome: 0.5,
+                waveIncomePerEra: 0.25,
+                waveBudgetCap: 30
+            },
+            waves: { enabled: true, firstWaveAt: 35, waveGap: 30, unitsPerWave: 2, growthPerEra: 1, maxUnits: 4 },
             counters: { antiHeavy: 0, antiRanged: 0, antiSwarm: 0 },
             director: { enabled: false, targetWinRate: 0.55, maxPressure: 1.5, minPressure: 0.75 },
-            scaling: { alpha: 0, cap: 1.0 }
+            scaling: { alpha: 0.06, cap: 1.5 }
         },
         metrics: {
             targetWinRateEarly: 0.70,
@@ -3521,6 +3532,10 @@
             this.spawnTimer = cfg.initialSpawnDelay;
             this.heroTimer = cfg.heroDelayBase + Math.random() * cfg.heroDelayRandom;
             this.heroSpawned = false;
+            this.budget = cfg.budget.start;
+            this.waveBudget = 0;
+            this.waveTimer = cfg.waves.firstWaveAt;
+            this.waveCount = 0;
         }
 
         pickUnit(era) {
@@ -3531,21 +3546,67 @@
             return era.units[2];
         }
 
+        getPowerScale() {
+            if (!BALANCE.flags.useEnemyScaling) return 1;
+            const cfg = BALANCE.enemyAI;
+            const eraIndex = this.game.stateManager.currentEra;
+            return 1 + Math.min(cfg.scaling.cap - 1, eraIndex * cfg.scaling.alpha);
+        }
+
         update(dt) {
             const game = this.game;
             if (!game.inBattle || game.battleOver) return;
             const cfg = BALANCE.enemyAI;
             const eraIndex = game.stateManager.currentEra;
             const era = ERAS[eraIndex];
+            const elapsed = game.battleStats ? game.battleStats.elapsed : 0;
+            const powerScale = this.getPowerScale();
+
+            if (BALANCE.flags.useEnemyBudget) {
+                const ramp = Math.min(
+                    cfg.budget.incomeRampMax,
+                    (elapsed / cfg.budget.incomeRampSeconds) * cfg.budget.incomeRampMax
+                );
+                const income = cfg.budget.incomeBase * (1 + eraIndex * cfg.budget.incomePerEra) * (1 + ramp);
+                this.budget = Math.min(cfg.budget.cap, this.budget + income * dt);
+                const waveIncome = cfg.budget.waveIncome * (1 + eraIndex * cfg.budget.waveIncomePerEra);
+                this.waveBudget = Math.min(cfg.budget.waveBudgetCap, this.waveBudget + waveIncome * dt);
+            }
 
             this.spawnTimer -= dt;
             if (this.spawnTimer <= 0) {
-                game.spawnEnemyUnit(this.pickUnit(era));
-                const reduction = Math.min(cfg.spawnIntervalEraReductionCap, eraIndex * cfg.spawnIntervalEraReduction);
-                this.spawnTimer = Math.max(
-                    cfg.spawnIntervalMin,
-                    cfg.spawnIntervalBase + Math.random() * cfg.spawnIntervalRandom - reduction
-                );
+                const unitCfg = this.pickUnit(era);
+                const affordable = !BALANCE.flags.useEnemyBudget || this.budget >= unitCfg.cost;
+                if (affordable) {
+                    if (BALANCE.flags.useEnemyBudget) this.budget -= unitCfg.cost;
+                    game.spawnEnemyUnit(unitCfg, powerScale);
+                    const reduction = Math.min(cfg.spawnIntervalEraReductionCap, eraIndex * cfg.spawnIntervalEraReduction);
+                    this.spawnTimer = Math.max(
+                        cfg.spawnIntervalMin,
+                        cfg.spawnIntervalBase + Math.random() * cfg.spawnIntervalRandom - reduction
+                    );
+                } else {
+                    this.spawnTimer = cfg.budget.retryDelay;
+                }
+            }
+
+            if (BALANCE.flags.useWaves && cfg.waves.enabled) {
+                this.waveTimer -= dt;
+                if (this.waveTimer <= 0) {
+                    const n = Math.min(
+                        cfg.waves.maxUnits,
+                        cfg.waves.unitsPerWave + eraIndex * cfg.waves.growthPerEra
+                    );
+                    for (let i = 0; i < n; i++) {
+                        const unitCfg = this.pickUnit(era);
+                        if (BALANCE.flags.useEnemyBudget && this.waveBudget < unitCfg.cost) break;
+                        if (BALANCE.flags.useEnemyBudget) this.waveBudget -= unitCfg.cost;
+                        game.spawnEnemyUnit(unitCfg, powerScale);
+                    }
+                    this.waveCount++;
+                    if (game.battleStats) game.battleStats.enemyWaves = this.waveCount;
+                    this.waveTimer = cfg.waves.waveGap;
+                }
             }
 
             if (!this.heroSpawned && game.enemyUnits.length > 0) {
@@ -3888,11 +3949,16 @@
             }
         }
 
-        spawnEnemyUnit(config) {
+        spawnEnemyUnit(config, powerScale = 1) {
             // Emerge smoothly from inside the enemy arched dark cave portal
             const spawnX = this.enemyBase.x + this.enemyBase.width * 0.52;
             const portalY = this.enemyBase.y + this.enemyBase.height * 0.62;
             const unit = new Unit2D(config, true, spawnX, portalY);
+            if (powerScale && powerScale !== 1) {
+                unit.maxHp = Math.floor(unit.maxHp * powerScale);
+                unit.hp = unit.maxHp;
+                unit.damage = Math.floor(unit.damage * powerScale);
+            }
             const laneOffsets = [-55, -28, 0, 28, 55];
             const offset = laneOffsets[this.enemyUnits.length % laneOffsets.length] + (Math.random() - 0.5) * 12;
             unit.targetY = this.laneCenterY + offset;
@@ -4149,6 +4215,7 @@
                 peakEnemy: 0,
                 enemySpawned: 0,
                 playerSpawned: 0,
+                enemyWaves: 0,
                 era: this.stateManager.currentEra,
                 dungeon: !!this.isDungeonMode
             };
@@ -4166,6 +4233,7 @@
                 duration: Math.round((stats.elapsed || 0) * 10) / 10,
                 peakPlayer: stats.peakPlayer || 0,
                 peakEnemy: stats.peakEnemy || 0,
+                waves: stats.enemyWaves || 0,
                 playerHpPct: Math.round(playerHpPct * 100)
             };
             if (!Array.isArray(this.stateManager.battleLog)) this.stateManager.battleLog = [];
